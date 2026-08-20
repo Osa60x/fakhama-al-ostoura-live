@@ -2,6 +2,7 @@ import type { Env } from "./types";
 import { refreshPriceSnapshot } from "./price-refresh";
 import { formatPublicDashboard, type DashboardRow } from "./public-dashboard";
 import { readPublicHistory, type ChartRange } from "./price-history";
+import { adminResponse } from "./admin";
 
 const noStore = { "cache-control": "no-store", "content-type": "application/json; charset=utf-8" };
 
@@ -36,6 +37,7 @@ export default {
     if (url.pathname === "/api/health" && request.method === "GET") {
       return json({ status: env.SUPABASE_URL ? "configured" : "unconfigured" });
     }
+    if (url.pathname.startsWith("/api/admin/")) return adminResponse(request, env, url.pathname);
     return env.ASSETS.fetch(request);
   },
   async scheduled(_controller, env, ctx): Promise<void> {
