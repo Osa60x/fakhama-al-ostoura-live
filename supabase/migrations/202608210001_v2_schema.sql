@@ -243,3 +243,55 @@ end;
 $$;
 revoke all on function public.apply_price_adjustments(uuid, public.app_role, jsonb) from public, anon, authenticated;
 grant execute on function public.apply_price_adjustments(uuid, public.app_role, jsonb) to service_role;
+
+create or replace function public.record_price_snapshot(
+  p_xau_usd numeric,
+  p_source_name text,
+  p_source_updated_at timestamptz,
+  p_market_24_sar numeric,
+  p_market_21_sar numeric,
+  p_market_18_sar numeric,
+  p_final_24_sar numeric,
+  p_final_21_sar numeric,
+  p_final_18_sar numeric
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare bucket timestamptz := date_trunc('minute', now());
+begin
+  if p_xau_usd <= 0 or p_market_24_sar <= 0 or p_market_21_sar <= 0 or p_market_18_sar <= 0 or p_final_24_sar <= 0 or p_final_21_sar <= 0 or p_final_18_sar <= 0 then
+    raise exception 'invalid snapshot';
+  end if;
+  insert into public.price_snapshots (
+    minute_bucket, xau_usd, usd_sar, market_24_sar, market_21_sar, market_18_sar,
+    final_24_sar, final_21_sar, final_18_sar, source_name, source_updated_at
+  ) values (
+    bucket, p_xau_usd, 3.75, p_market_24_sar, p_market_21_sar, p_market_18_sar,
+    p_final_24_sar, p_final_21_sar, p_final_18_sar, p_source_name, p_source_updated_at
+  ) on conflict (minute_bucket) do update set
+    xau_usd = excluded.xau_usd, usd_sar = excluded.usd_sar,
+    market_24_sar = excluded.market_24_sar, market_21_sar = excluded.market_21_sar, market_18_sar = excluded.market_18_sar,
+    final_24_sar = excluded.final_24_sar, final_21_sar = excluded.final_21_sar, final_18_sar = excluded.final_18_sar,
+    source_name = excluded.source_name, source_updated_at = excluded.source_updated_at, fetched_at = now();
+  update public.price_runtime_status set last_status = 'ok', last_attempt_at = now(), last_successful_at = now(), last_error_code = null, updated_at = now() where id = true;
+end;
+$$;
+revoke all on function public.record_price_snapshot(numeric, text, timestamptz, numeric, numeric, numeric, numeric, numeric, numeric) from public, anon, authenticated;
+grant execute on function public.record_price_snapshot(numeric, text, timestamptz, numeric, numeric, numeric, numeric, numeric, numeric) to service_role;
+
+create or replace function public.record_price_failure(p_error_code text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_error_code not in ('source_unavailable', 'invalid_payload', 'storage_failed', 'unconfigured') then raise exception 'invalid failure code'; end if;
+  update public.price_runtime_status set last_status = 'error', last_attempt_at = now(), last_error_code = p_error_code, updated_at = now() where id = true;
+end;
+$$;
+revoke all on function public.record_price_failure(text) from public, anon, authenticated;
+grant execute on function public.record_price_failure(text) to service_role;

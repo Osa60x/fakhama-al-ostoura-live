@@ -1,4 +1,6 @@
 import type { Env } from "./types";
+import { refreshPriceSnapshot } from "./price-refresh";
+import { formatPublicDashboard } from "./public-dashboard";
 
 const noStore = { "cache-control": "no-store", "content-type": "application/json; charset=utf-8" };
 
@@ -18,7 +20,7 @@ async function publicStatus(env: Env) {
     }
   });
   if (!response.ok) return json({ data: null, status: "unavailable" }, { status: 503 });
-  return json({ data: await response.json(), status: "ok" });
+  return json({ ...formatPublicDashboard(await response.json()), status: "ok" });
 }
 
 export default {
@@ -30,7 +32,8 @@ export default {
     }
     return env.ASSETS.fetch(request);
   },
-  async scheduled(): Promise<void> {
-    // Phase 8 adds the only source-refresh path. Public visitors never invoke it.
+  async scheduled(_controller, env, ctx): Promise<void> {
+    // هذا هو المسار الوحيد الذي يتصل بمصدر الذهب؛ لا تستدعيه الواجهة العامة.
+    ctx.waitUntil(refreshPriceSnapshot(env));
   }
 } satisfies ExportedHandler<Env>;
