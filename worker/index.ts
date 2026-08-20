@@ -1,6 +1,7 @@
 import type { Env } from "./types";
 import { refreshPriceSnapshot } from "./price-refresh";
-import { formatPublicDashboard } from "./public-dashboard";
+import { formatPublicDashboard, type DashboardRow } from "./public-dashboard";
+import { readPublicHistory, type ChartRange } from "./price-history";
 
 const noStore = { "cache-control": "no-store", "content-type": "application/json; charset=utf-8" };
 
@@ -8,7 +9,7 @@ function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), { ...init, headers: { ...noStore, ...(init.headers ?? {}) } });
 }
 
-async function publicStatus(env: Env) {
+async function publicStatus(env: Env, range: ChartRange) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return json({ data: null, status: "unconfigured" }, { status: 503 });
   }
@@ -20,13 +21,18 @@ async function publicStatus(env: Env) {
     }
   });
   if (!response.ok) return json({ data: null, status: "unavailable" }, { status: 503 });
-  return json({ ...formatPublicDashboard(await response.json()), status: "ok" });
+  const [rows, history] = await Promise.all([response.json() as Promise<DashboardRow[]>, readPublicHistory(env, range)]);
+  return json({ ...formatPublicDashboard(rows), history, status: "ok" });
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/api/public/dashboard" && request.method === "GET") return publicStatus(env);
+    if (url.pathname === "/api/public/dashboard" && request.method === "GET") {
+      const requestedRange = url.searchParams.get("range");
+      const range: ChartRange = requestedRange === "week" || requestedRange === "month" ? requestedRange : "day";
+      return publicStatus(env, range);
+    }
     if (url.pathname === "/api/health" && request.method === "GET") {
       return json({ status: env.SUPABASE_URL ? "configured" : "unconfigured" });
     }

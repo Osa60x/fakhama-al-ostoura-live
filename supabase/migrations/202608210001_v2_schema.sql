@@ -295,3 +295,30 @@ end;
 $$;
 revoke all on function public.record_price_failure(text) from public, anon, authenticated;
 grant execute on function public.record_price_failure(text) to service_role;
+
+create or replace function public.public_price_history(p_range text)
+returns table(bucket timestamptz, price_sar numeric)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_range = 'day' then
+    return query select date_trunc('hour', p.fetched_at), avg(p.final_24_sar)
+      from public.price_snapshots p where p.fetched_at >= now() - interval '1 day'
+      group by 1 order by 1;
+  elsif p_range = 'week' then
+    return query select date_trunc('day', p.fetched_at), avg(p.final_24_sar)
+      from public.price_snapshots p where p.fetched_at >= now() - interval '7 day'
+      group by 1 order by 1;
+  elsif p_range = 'month' then
+    return query select date_trunc('day', p.fetched_at), avg(p.final_24_sar)
+      from public.price_snapshots p where p.fetched_at >= now() - interval '30 day'
+      group by 1 order by 1;
+  else
+    raise exception 'invalid range';
+  end if;
+end;
+$$;
+revoke all on function public.public_price_history(text) from public, anon, authenticated;
+grant execute on function public.public_price_history(text) to service_role;
