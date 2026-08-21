@@ -113,8 +113,9 @@ export function AdminPage() {
     }
     setBusy(true); setMessage("");
     try {
-      const result = await adminFetch<{ adjustments: Adjustment[] }>("/api/admin/price-adjustments", { method: "PUT", body: JSON.stringify(normalized) });
-      setAdjustments(result.adjustments); setMessage("تم حفظ ضبط الأسعار وسجل التدقيق.");
+      const result = await adminFetch<{ adjustments: Adjustment[]; refresh_status?: "ok" | "error" | "unconfigured" }>("/api/admin/price-adjustments", { method: "PUT", body: JSON.stringify(normalized) });
+      setAdjustments(result.adjustments);
+      setMessage(result.refresh_status === "ok" ? "تم حفظ الضبط وتحديث الأسعار العامة فوراً." : "تم حفظ الضبط، لكن تعذر تحديث اللقطة العامة الآن؛ سيعيدها التحديث المجدول لاحقاً.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "تعذر الحفظ."); }
     setBusy(false);
   };

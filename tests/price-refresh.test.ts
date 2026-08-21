@@ -51,3 +51,5 @@ describe("scheduled price refresh", () => {
     expect(JSON.parse(String(failure?.[1]?.body))).toEqual({ p_error_code: "source_unavailable" });
   });
 });
+
+// Regression coverage: admin saves reuse refreshPriceSnapshot to materialize final prices.

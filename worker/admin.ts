@@ -2,6 +2,7 @@ import { ApiError, authenticateAdmin, requireRole, type AdminIdentity } from "./
 import { validateContacts, validateManagerEmail, validateSettings } from "./admin-content";
 import { uploadLogo } from "./logo";
 import { callRpc } from "./supabase";
+import { refreshPriceSnapshot } from "./price-refresh";
 import type { Env } from "./types";
 
 const json = (body: unknown, init: ResponseInit = {}) => new Response(JSON.stringify(body), { ...init, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...(init.headers ?? {}) } });
@@ -126,7 +127,10 @@ export async function adminResponse(request: Request, env: Env, path: string): P
       const body = await request.json().catch(() => null);
       const adjustments = validateAdjustments(body);
       await callRpc(env, "apply_price_adjustments", { p_actor: identity.id, p_actor_role: identity.role, p_adjustments: adjustments });
-      return json({ ok: true, adjustments: await readAdjustments(env) });
+      // Materialize the saved adjustments immediately into the public snapshot.
+      // The scheduled refresh remains the fallback if the upstream quote is unavailable.
+      const refresh = await refreshPriceSnapshot(env);
+      return json({ ok: true, refresh_status: refresh.status, adjustments: await readAdjustments(env) });
     }
     if (path === "/api/admin/audit" && request.method === "GET") {
       requireRole(identity, ["owner"]);
