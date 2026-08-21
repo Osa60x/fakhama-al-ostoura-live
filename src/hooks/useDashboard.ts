@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 export type PublicDashboard = {
   site_name?: string;
+  logo_path?: string | null;
   address?: string;
   show_address?: boolean;
   title_font?: string;

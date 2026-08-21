@@ -49,6 +49,7 @@ export function App() {
   const [carat, setCarat] = useState<"24" | "21" | "18">("21");
   const [copied, setCopied] = useState(false);
   const data = reply?.data;
+  const logoUrl = data?.logo_path ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/branding/${data.logo_path}` : null;
   const freshness = reply?.freshness ?? "unavailable";
   const prices = { "24": toNumber(data?.final_24_sar), "21": toNumber(data?.final_21_sar), "18": toNumber(data?.final_18_sar) };
   const weight = Number(grams);
@@ -77,7 +78,7 @@ export function App() {
 
   return <main className="app-shell" data-theme={theme} style={dynamicStyle}>
     <header className="topbar surface">
-      <div className="brand-lockup"><span className="brand-mark"><Icon name="diamond" size={22}/></span><div><p>أسعار الذهب</p><h1>{data?.site_name ?? "فخامة الأسطورة"}</h1></div></div>
+      <div className="brand-lockup">{logoUrl ? <img className="brand-logo" src={logoUrl} alt="شعار المتجر" /> : <span className="brand-mark"><Icon name="diamond" size={22}/></span>}<div><p>أسعار الذهب</p><h1>{data?.site_name ?? "فخامة الأسطورة"}</h1></div></div>
       <div className="theme-switcher" aria-label="اختيار المظهر">
         <button className={theme === "light" ? "active" : ""} onClick={() => setTheme("light")} aria-label="مظهر فاتح"><Icon name="sun" size={17}/></button>
         <button className={theme === "system" ? "active" : ""} onClick={() => setTheme("system")} aria-label="حسب الجهاز">آ</button>
