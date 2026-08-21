@@ -31,3 +31,9 @@ export function validateContacts(value: unknown): Array<{ kind: string; label: s
     return { kind, label, value: contactValue, sort_order: sortOrder, is_active: isActive };
   });
 }
+
+export function validateManagerEmail(value: unknown): string {
+  const email = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(400, "invalid_input", "البريد الإلكتروني للمدير غير صالح.");
+  return email;
+}

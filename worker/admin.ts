@@ -1,5 +1,5 @@
 import { ApiError, authenticateAdmin, requireRole, type AdminIdentity } from "./auth";
-import { validateContacts, validateSettings } from "./admin-content";
+import { validateContacts, validateManagerEmail, validateSettings } from "./admin-content";
 import { callRpc } from "./supabase";
 import type { Env } from "./types";
 
@@ -50,6 +50,19 @@ async function readContacts(env: Env) {
   return response.json();
 }
 
+async function inviteManager(env: Env, actor: AdminIdentity, email: string) {
+  const headers = systemHeaders(env);
+  const inviteResponse = await fetch(`${env.SUPABASE_URL}/auth/v1/invite`, { method: "POST", headers, body: JSON.stringify({ email, data: { role: "manager" } }) });
+  if (!inviteResponse.ok) throw new ApiError(400, "invalid_input", "تعذر إرسال دعوة المدير. تحقق من البريد أو إعدادات البريد.");
+  const invited = await inviteResponse.json() as { id?: string };
+  if (!invited.id) throw new Error("MANAGER_INVITE_NO_USER");
+  const promoteResponse = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(invited.id)}`, { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify({ role: "manager", is_active: true }) });
+  if (!promoteResponse.ok) throw new Error("MANAGER_PROMOTION_FAILED");
+  const inviteRecord = await fetch(`${env.SUPABASE_URL}/rest/v1/manager_invites`, { method: "POST", headers: { ...headers, Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ email, invited_by: actor.id, claimed_by: invited.id, is_active: true }) });
+  if (!inviteRecord.ok) throw new Error("MANAGER_INVITE_RECORD_FAILED");
+  await fetch(`${env.SUPABASE_URL}/rest/v1/audit_logs`, { method: "POST", headers, body: JSON.stringify({ actor_id: actor.id, actor_role: actor.role, action: "manager_invited", entity_type: "manager_invites", entity_id: invited.id, after_value: { email } }) });
+}
+
 export async function adminResponse(request: Request, env: Env, path: string): Promise<Response> {
   try {
     const identity = await authenticateAdmin(request, env);
@@ -95,6 +108,13 @@ export async function adminResponse(request: Request, env: Env, path: string): P
       const contacts = validateContacts(await request.json().catch(() => null));
       await callRpc(env, "replace_contact_links", { p_actor: identity.id, p_contacts: contacts });
       return json({ contacts: await readContacts(env) });
+    }
+    if (path === "/api/admin/managers" && request.method === "POST") {
+      requireRole(identity, ["owner"]);
+      const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+      const email = validateManagerEmail(body?.email);
+      await inviteManager(env, identity, email);
+      return json({ ok: true });
     }
     return json({ code: "not_found" }, { status: 404 });
   } catch (error) {
