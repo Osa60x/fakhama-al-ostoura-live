@@ -5,6 +5,8 @@ import { supabase } from "./lib/supabase";
 type Identity = { id: string; displayName: string | null; role: "owner" | "manager" | "user"; isActive: boolean };
 type Adjustment = { carat: "24" | "21" | "18"; adjustment_sar: number | string; updated_at: string };
 type Health = { last_status?: string; last_attempt_at?: string | null; last_successful_at?: string | null; last_error_code?: string | null } | null;
+type SiteSettings = { site_name: string; address: string; show_address: boolean; palette: string; theme_mode: string; title_font: string; title_size: number; title_weight: number; title_color: string; subtitle_size: number; subtitle_weight: number; subtitle_color: string; chart_visible: boolean; chart_default_range: string; chart_mode: string };
+type Contact = { id?: string; kind: "whatsapp" | "phone" | "instagram" | "snapchat" | "telegram" | "email"; label: string; value: string; sort_order: number; is_active: boolean };
 
 async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const session = await supabase?.auth.getSession();
@@ -22,6 +24,8 @@ export function AdminPage() {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [health, setHealth] = useState<Health>(null);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const configured = Boolean(supabase);
@@ -35,8 +39,14 @@ export function AdminPage() {
       setAdjustments(prices.adjustments);
     }
     if (me.identity.role === "owner") {
-      const status = await adminFetch<{ status: Health }>("/api/admin/system-health");
+      const [status, currentSettings, currentContacts] = await Promise.all([
+        adminFetch<{ status: Health }>("/api/admin/system-health"),
+        adminFetch<{ settings: SiteSettings }>("/api/admin/site-settings"),
+        adminFetch<{ contacts: Contact[] }>("/api/admin/contact-links")
+      ]);
       setHealth(status.status);
+      setSettings(currentSettings.settings);
+      setContacts(currentContacts.contacts);
     }
   };
 
@@ -64,9 +74,20 @@ export function AdminPage() {
     setBusy(false);
   };
   const logout = async () => { await supabase?.auth.signOut(); setIdentity(null); setAdjustments([]); setHealth(null); };
+  const saveSettings = async () => {
+    if (!settings) return;
+    setBusy(true); setMessage("");
+    try { const result = await adminFetch<{ settings: SiteSettings }>("/api/admin/site-settings", { method: "PUT", body: JSON.stringify(settings) }); setSettings(result.settings); setMessage("تم حفظ إعدادات الهوية والمظهر وسجل التدقيق."); } catch (error) { setMessage(error instanceof Error ? error.message : "تعذر الحفظ."); }
+    setBusy(false);
+  };
+  const saveContacts = async () => {
+    setBusy(true); setMessage("");
+    try { const result = await adminFetch<{ contacts: Contact[] }>("/api/admin/contact-links", { method: "PUT", body: JSON.stringify(contacts.map(({ id: _id, ...contact }) => contact)) }); setContacts(result.contacts); setMessage("تم حفظ روابط التواصل وسجل التدقيق."); } catch (error) { setMessage(error instanceof Error ? error.message : "تعذر الحفظ."); }
+    setBusy(false);
+  };
 
   if (!configured) return <main className="admin-shell"><section className="admin-card"><h1>لوحة الإدارة غير مهيأة</h1><p>لا يمكن تسجيل الدخول قبل ضبط عنوان Supabase ومفتاح publishable في بيئة البناء. لا تعرض هذه الصفحة أي بديل أو حساب تجريبي.</p></section></main>;
   if (!identity) return <main className="admin-shell"><form className="admin-card" onSubmit={login}><p className="admin-kicker">فخامة الأسطورة V2</p><h1>تسجيل الدخول للإدارة</h1><label>البريد الإلكتروني<input type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} required /></label><label>كلمة المرور<input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required /></label>{message ? <p className="admin-message">{message}</p> : null}<button className="admin-primary" disabled={busy}>{busy ? "جارٍ التحقق…" : "تسجيل الدخول"}</button><button type="button" className="admin-link" onClick={reset}>نسيت كلمة المرور</button></form></main>;
 
-  return <main className="admin-shell"><header className="admin-header"><div><p className="admin-kicker">{owner ? "OWNER" : "MANAGER"}</p><h1>إدارة فخامة الأسطورة</h1><span>{identity.displayName ?? "حساب الإدارة"}</span></div><div><a href="/">عرض الموقع</a><button onClick={logout}>تسجيل الخروج</button></div></header><p className="admin-message" aria-live="polite">{message}</p><section className="admin-grid"><article className="admin-card admin-prices"><p className="admin-kicker">الأسعار</p><h2>ضبط المتجر</h2><p>يمكنك إضافة أو خصم قيمة بالريال للجرام. لا يملك المدير أي إعدادات أخرى.</p>{adjustments.map(item => <label key={item.carat}>{item.carat}K<input inputMode="decimal" value={item.adjustment_sar} onChange={event => setAdjustments(current => current.map(value => value.carat === item.carat ? { ...value, adjustment_sar: event.target.value } : value))} /></label>)}<button className="admin-primary" disabled={busy} onClick={savePrices}>{busy ? "جارٍ الحفظ…" : "حفظ الضبط"}</button></article>{owner ? <><article className="admin-card"><p className="admin-kicker">SYSTEM HEALTH</p><h2>صحة النظام</h2><dl><dt>المصدر</dt><dd>{health?.last_status ?? "غير متاح"}</dd><dt>آخر محاولة</dt><dd>{formatTime(health?.last_attempt_at)}</dd><dt>آخر نجاح</dt><dd>{formatTime(health?.last_successful_at)}</dd><dt>رمز الخطأ</dt><dd>{health?.last_error_code ?? "—"}</dd></dl></article><article className="admin-card"><p className="admin-kicker">الصلاحيات</p><h2>نطاق المالك</h2><p>تظهر إعدادات الهوية والمحتوى والتواصل والمخطط والمستخدمين والسجل بعد تهيئة قاعدة Supabase وتشغيل migration. لا تُعرض كأزرار تشغيل وهمية قبل تفعيل المسارات الخادمية المقابلة.</p></article></> : <article className="admin-card"><p className="admin-kicker">حدود المدير</p><h2>صلاحيات مقيدة</h2><p>يستطيع المدير ضبط 24K و21K و18K فقط. لا يستطيع تعديل الهوية أو التواصل أو المستخدمين أو سجل التدقيق أو التحديث المجدول.</p></article>}</section></main>;
+  return <main className="admin-shell"><header className="admin-header"><div><p className="admin-kicker">{owner ? "OWNER" : "MANAGER"}</p><h1>إدارة فخامة الأسطورة</h1><span>{identity.displayName ?? "حساب الإدارة"}</span></div><div><a href="/">عرض الموقع</a><button onClick={logout}>تسجيل الخروج</button></div></header><p className="admin-message" aria-live="polite">{message}</p><section className="admin-grid"><article className="admin-card admin-prices"><p className="admin-kicker">الأسعار</p><h2>ضبط المتجر</h2><p>يمكنك إضافة أو خصم قيمة بالريال للجرام. لا يملك المدير أي إعدادات أخرى.</p>{adjustments.map(item => <label key={item.carat}>{item.carat}K<input inputMode="decimal" value={item.adjustment_sar} onChange={event => setAdjustments(current => current.map(value => value.carat === item.carat ? { ...value, adjustment_sar: event.target.value } : value))} /></label>)}<button className="admin-primary" disabled={busy} onClick={savePrices}>{busy ? "جارٍ الحفظ…" : "حفظ الضبط"}</button></article>{owner ? <><article className="admin-card"><p className="admin-kicker">SYSTEM HEALTH</p><h2>صحة النظام</h2><dl><dt>المصدر</dt><dd>{health?.last_status ?? "غير متاح"}</dd><dt>آخر محاولة</dt><dd>{formatTime(health?.last_attempt_at)}</dd><dt>آخر نجاح</dt><dd>{formatTime(health?.last_successful_at)}</dd><dt>رمز الخطأ</dt><dd>{health?.last_error_code ?? "—"}</dd></dl></article>{settings ? <article className="admin-card admin-owner"><p className="admin-kicker">الهوية والمظهر</p><h2>إعدادات المتجر</h2><label>اسم المتجر<input value={settings.site_name} onChange={event => setSettings({ ...settings, site_name: event.target.value })}/></label><label>العنوان<input value={settings.address} onChange={event => setSettings({ ...settings, address: event.target.value })}/></label><label>لون العنوان<input value={settings.title_color} onChange={event => setSettings({ ...settings, title_color: event.target.value })}/></label><label>المظهر<select value={settings.theme_mode} onChange={event => setSettings({ ...settings, theme_mode: event.target.value })}><option value="system">حسب الجهاز</option><option value="light">فاتح</option><option value="dark">داكن</option></select></label><label className="admin-toggle"><input type="checkbox" checked={settings.show_address} onChange={event => setSettings({ ...settings, show_address: event.target.checked })}/>إظهار العنوان</label><label className="admin-toggle"><input type="checkbox" checked={settings.chart_visible} onChange={event => setSettings({ ...settings, chart_visible: event.target.checked })}/>إظهار المخطط</label><button className="admin-primary" disabled={busy} onClick={saveSettings}>حفظ الإعدادات</button></article> : null}<article className="admin-card admin-owner"><p className="admin-kicker">التواصل</p><h2>روابط مختصرة</h2>{contacts.map((contact, index) => <div className="contact-row" key={contact.id ?? index}><select value={contact.kind} onChange={event => setContacts(current => current.map((value, position) => position === index ? { ...value, kind: event.target.value as Contact["kind"] } : value))}><option value="whatsapp">واتساب</option><option value="phone">اتصال</option><option value="instagram">إنستغرام</option><option value="snapchat">سناب</option><option value="telegram">تيليجرام</option><option value="email">بريد</option></select><input value={contact.label} aria-label="العنوان" onChange={event => setContacts(current => current.map((value, position) => position === index ? { ...value, label: event.target.value } : value))}/><input value={contact.value} aria-label="الرابط أو الرقم" onChange={event => setContacts(current => current.map((value, position) => position === index ? { ...value, value: event.target.value } : value))}/><button onClick={() => setContacts(current => current.filter((_, position) => position !== index))}>حذف</button></div>)}<button className="admin-link" onClick={() => setContacts(current => [...current, { kind: "whatsapp", label: "واتساب", value: "https://wa.me/", sort_order: current.length, is_active: true }])}>إضافة رابط</button><button className="admin-primary" disabled={busy} onClick={saveContacts}>حفظ التواصل</button></article></> : <article className="admin-card"><p className="admin-kicker">حدود المدير</p><h2>صلاحيات مقيدة</h2><p>يستطيع المدير ضبط 24K و21K و18K فقط. لا يستطيع تعديل الهوية أو التواصل أو المستخدمين أو سجل التدقيق أو التحديث المجدول.</p></article>}</section></main>;
 }

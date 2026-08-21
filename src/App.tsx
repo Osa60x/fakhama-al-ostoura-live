@@ -1,8 +1,9 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useMemo, useState, type CSSProperties } from "react";
 import { formatOunce, formatSar, formatTime } from "./lib/format";
 import { toNumber, useDashboard, type ChartRange, type Freshness, type HistoryPoint } from "./hooks/useDashboard";
 import "./chart.css";
-import { AdminPage } from "./AdminPage";
+
+const AdminPage = lazy(async () => ({ default: (await import("./AdminPage")).AdminPage }));
 
 type DisplayTheme = "light" | "system" | "dark";
 type IconName = "diamond" | "sun" | "moon" | "share" | "refresh" | "chart" | "calc" | "pin";
@@ -40,7 +41,7 @@ function MiniChart({ points }: { points: HistoryPoint[] }) {
 }
 
 export function App() {
-  if (window.location.pathname === "/admin") return <AdminPage />;
+  if (window.location.pathname === "/admin") return <Suspense fallback={<main className="app-shell"><p>جارٍ تحميل الإدارة…</p></main>}><AdminPage /></Suspense>;
   const [range, setRange] = useState<ChartRange>("day");
   const { loading, reply } = useDashboard(range);
   const [theme, setTheme] = useState<DisplayTheme>("system");
