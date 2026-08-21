@@ -41,7 +41,8 @@ function MiniChart({ points }: { points: HistoryPoint[] }) {
 }
 
 export function App() {
-  if (window.location.pathname === "/admin") return <Suspense fallback={<main className="app-shell"><p>جارٍ تحميل الإدارة…</p></main>}><AdminPage /></Suspense>;
+  const adminRoute = window.location.pathname === "/admin" || new URLSearchParams(window.location.search).get("admin") === "1";
+  if (adminRoute) return <Suspense fallback={<main className="app-shell"><p>جارٍ تحميل الإدارة…</p></main>}><AdminPage /></Suspense>;
   const [range, setRange] = useState<ChartRange>("day");
   const { loading, reply } = useDashboard(range);
   const [theme, setTheme] = useState<DisplayTheme>("system");

@@ -38,6 +38,7 @@ export default {
       return json({ status: env.SUPABASE_URL ? "configured" : "unconfigured" });
     }
     if (url.pathname.startsWith("/api/admin/")) return adminResponse(request, env, url.pathname);
+    if (request.method === "GET" && url.pathname === "/admin") return Response.redirect(new URL("/?admin=1", request.url), 302);
     return env.ASSETS.fetch(request);
   },
   async scheduled(_controller, env, ctx): Promise<void> {
