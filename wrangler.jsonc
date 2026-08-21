@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "fakhama-al-ostoura-v2",
+  "name": "gold",
   "main": "worker/index.ts",
   "compatibility_date": "2026-08-21",
   "assets": {
