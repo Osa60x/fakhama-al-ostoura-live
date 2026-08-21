@@ -3,6 +3,9 @@
   "name": "gold",
   "main": "worker/index.ts",
   "compatibility_date": "2026-08-21",
+  "vars": {
+    "SUPABASE_URL": "https://rsrtwubjdfdnflkttwwy.supabase.co"
+  },
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
