@@ -2,6 +2,12 @@ import type { Env } from "./types";
 
 export type AdminRole = "owner" | "manager" | "user";
 export type AdminIdentity = { id: string; displayName: string | null; role: AdminRole; isActive: boolean };
+type ProfileRow = { id: string; display_name: string | null; role: AdminRole; is_active: boolean };
+
+export function toAdminIdentity(profile: ProfileRow | null | undefined): AdminIdentity | null {
+  if (!profile) return null;
+  return { id: profile.id, displayName: profile.display_name, role: profile.role, isActive: profile.is_active };
+}
 
 export class ApiError extends Error {
   constructor(public readonly status: number, public readonly code: "unauthorized" | "forbidden" | "invalid_input" | "unconfigured", message: string) {
@@ -25,7 +31,8 @@ export async function authenticateAdmin(request: Request, env: Env): Promise<Adm
   if (!user.id) throw new ApiError(401, "unauthorized", "جلسة الدخول غير صالحة.");
   const profileResponse = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=id,display_name,role,is_active`, { headers });
   if (!profileResponse.ok) throw new ApiError(401, "unauthorized", "لا يوجد ملف صلاحيات صالح.");
-  const [profile] = await profileResponse.json() as AdminIdentity[];
+  const [profileRow] = await profileResponse.json() as ProfileRow[];
+  const profile = toAdminIdentity(profileRow);
   if (!profile?.isActive) throw new ApiError(403, "forbidden", "الحساب غير نشط أو لا يملك صلاحيات إدارة.");
   return profile;
 }
