@@ -1,4 +1,5 @@
 import { ApiError, authenticateAdmin, requireRole, type AdminIdentity } from "./auth";
+import { validateContacts, validateSettings } from "./admin-content";
 import { callRpc } from "./supabase";
 import type { Env } from "./types";
 
@@ -37,6 +38,18 @@ async function audit(env: Env) {
   return response.json();
 }
 
+async function readSiteSettings(env: Env) {
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/site_settings?select=*&id=eq.true`, { headers: systemHeaders(env) });
+  if (!response.ok) throw new Error("SETTINGS_READ_FAILED");
+  return (await response.json() as Array<Record<string, unknown>>)[0] ?? null;
+}
+
+async function readContacts(env: Env) {
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/contact_links?select=id,kind,label,value,sort_order,is_active&order=sort_order.asc`, { headers: systemHeaders(env) });
+  if (!response.ok) throw new Error("CONTACTS_READ_FAILED");
+  return response.json();
+}
+
 export async function adminResponse(request: Request, env: Env, path: string): Promise<Response> {
   try {
     const identity = await authenticateAdmin(request, env);
@@ -62,6 +75,26 @@ export async function adminResponse(request: Request, env: Env, path: string): P
       if (!response.ok) throw new Error("HEALTH_READ_FAILED");
       const rows = await response.json() as Array<Record<string, unknown>>;
       return json({ status: rows[0] ?? null });
+    }
+    if (path === "/api/admin/site-settings" && request.method === "GET") {
+      requireRole(identity, ["owner"]);
+      return json({ settings: await readSiteSettings(env) });
+    }
+    if (path === "/api/admin/site-settings" && request.method === "PUT") {
+      requireRole(identity, ["owner"]);
+      const settings = validateSettings(await request.json().catch(() => null));
+      await callRpc(env, "update_site_settings", { p_actor: identity.id, p_settings: settings });
+      return json({ settings: await readSiteSettings(env) });
+    }
+    if (path === "/api/admin/contact-links" && request.method === "GET") {
+      requireRole(identity, ["owner"]);
+      return json({ contacts: await readContacts(env) });
+    }
+    if (path === "/api/admin/contact-links" && request.method === "PUT") {
+      requireRole(identity, ["owner"]);
+      const contacts = validateContacts(await request.json().catch(() => null));
+      await callRpc(env, "replace_contact_links", { p_actor: identity.id, p_contacts: contacts });
+      return json({ contacts: await readContacts(env) });
     }
     return json({ code: "not_found" }, { status: 404 });
   } catch (error) {
