@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { BackupControls } from "./BackupControls";
 import { formatTime } from "./lib/format";
 import { isRecoveryHash, validateNewPassword } from "./lib/password-recovery";
-import { isAdjustmentInput, normalizeAdjustment } from "./lib/adjustments";
+import { isAdjustmentInput, normalizeAdjustment, stepAdjustment } from "./lib/adjustments";
 import { supabase } from "./lib/supabase";
 
 type Identity = { id: string; displayName: string | null; role: "owner" | "manager" | "user"; isActive: boolean };
@@ -160,8 +160,7 @@ export function AdminPage() {
     {item.carat}K
     <div className="adjustment-input-group">
       <button type="button" className="adjustment-btn" onClick={() => {
-        const currentVal = normalizeAdjustment(item.adjustment_sar) ?? 0;
-        const next = (currentVal - 1).toFixed(2);
+        const next = stepAdjustment(item.adjustment_sar, -1);
         setAdjustments(current => current.map(value => value.carat === item.carat ? { ...value, adjustment_sar: next } : value));
       }} aria-label={`إنقاص تعديل عيار ${item.carat}K`} title="إنقاص 1 ⃁">−</button>
       <input 
@@ -173,8 +172,7 @@ export function AdminPage() {
         }} 
       />
       <button type="button" className="adjustment-btn" onClick={() => {
-        const currentVal = normalizeAdjustment(item.adjustment_sar) ?? 0;
-        const next = (currentVal + 1).toFixed(2);
+        const next = stepAdjustment(item.adjustment_sar, 1);
         setAdjustments(current => current.map(value => value.carat === item.carat ? { ...value, adjustment_sar: next } : value));
       }} aria-label={`زيادة تعديل عيار ${item.carat}K`} title="زيادة 1 ⃁">+</button>
     </div>

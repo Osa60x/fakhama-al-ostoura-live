@@ -8,3 +8,8 @@ export function normalizeAdjustment(value: string | number): number | null {
   const number = Number(text);
   return Number.isFinite(number) ? Math.round(number * 100) / 100 : null;
 }
+
+export function stepAdjustment(value: string | number, delta: 1 | -1): string {
+  const current = normalizeAdjustment(value) ?? 0;
+  return (current + delta).toFixed(2);
+}
