@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatOunce, formatSar, formatTime } from "./lib/format";
 import { toNumber, useDashboard, type ChartRange, type Freshness, type HistoryPoint } from "./hooks/useDashboard";
 import "./chart.css";
@@ -46,6 +46,10 @@ export function App() {
   const [range, setRange] = useState<ChartRange>("day");
   const { loading, reply } = useDashboard(range);
   const [theme, setTheme] = useState<DisplayTheme>("system");
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    return () => { delete document.documentElement.dataset.theme; };
+  }, [theme]);
   const [grams, setGrams] = useState("10");
   const [carat, setCarat] = useState<"24" | "21" | "18">("21");
   const [copied, setCopied] = useState(false);
