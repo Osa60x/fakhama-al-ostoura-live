@@ -102,6 +102,6 @@ export function App() {
     </section>
 
     <aside className="disclosure"><b>تنبيه</b> الأسعار استرشادية وليست عرض بيع أو شراء نهائياً. تحقق من السعر لدى المتجر قبل اتخاذ قرار.</aside>
-    <footer><div>{data?.show_address !== false && data?.address ? <><Icon name="pin" size={17}/><span>{data.address}</span></> : null}</div><a href="https://wa.me/966551677479" target="_blank" rel="noreferrer">@Osa60x</a></footer>
+    <footer><div>{data?.show_address !== false && data?.address ? <><Icon name="pin" size={17}/><span>{data.address}</span></> : null}</div><div className="footer-links"><a href="https://wa.me/966551677479" target="_blank" rel="noreferrer">@Osa60x</a><a className="admin-entry" href="/admin">الإدارة</a></div></footer>
   </main>;
 }
