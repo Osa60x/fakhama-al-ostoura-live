@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BackupControls } from "./BackupControls";
 import { formatTime } from "./lib/format";
-import { isRecoveryHash, validateNewPassword } from "./lib/password-recovery";
+import { isPasswordSetupHash, validateNewPassword } from "./lib/password-recovery";
 import { isAdjustmentInput, normalizeAdjustment, stepAdjustment } from "./lib/adjustments";
 import { supabase } from "./lib/supabase";
 
@@ -34,7 +34,7 @@ export function AdminPage() {
   const [managerEmail, setManagerEmail] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState(() => typeof window !== "undefined" && isRecoveryHash(window.location.hash));
+  const [recoveryMode, setRecoveryMode] = useState(() => typeof window !== "undefined" && isPasswordSetupHash(window.location.hash));
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const configured = Boolean(supabase);
@@ -63,12 +63,12 @@ export function AdminPage() {
     if (!supabase) return;
     let active = true;
     const subscription = supabase.auth.onAuthStateChange(event => {
-      if (event === "PASSWORD_RECOVERY" && active) setRecoveryMode(true);
+      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && isPasswordSetupHash(window.location.hash) && active) setRecoveryMode(true);
     });
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      const recoveryLink = isRecoveryHash(window.location.hash);
-      if (recoveryLink) setRecoveryMode(true);
+      const passwordSetupLink = isPasswordSetupHash(window.location.hash);
+      if (passwordSetupLink) setRecoveryMode(true);
       else if (!data.session) void load().catch(() => undefined);
       else void load().catch(() => undefined);
     });

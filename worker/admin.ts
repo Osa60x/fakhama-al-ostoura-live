@@ -103,7 +103,8 @@ export function validateSettingsBackup(value: unknown): Omit<SettingsBackup, "ex
 
 async function inviteManager(env: Env, actor: AdminIdentity, email: string) {
   const headers = systemHeaders(env);
-  const inviteResponse = await fetch(`${env.SUPABASE_URL}/auth/v1/invite`, { method: "POST", headers, body: JSON.stringify({ email, data: { role: "manager" }, redirectTo: "https://gold.osa60x.workers.dev/admin" }) });
+  const redirectTo = "https://gold.osa60x.workers.dev/?admin=1";
+  const inviteResponse = await fetch(`${env.SUPABASE_URL}/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, { method: "POST", headers, body: JSON.stringify({ email, data: { role: "manager" } }) });
   if (!inviteResponse.ok) throw new ApiError(400, "invalid_input", "تعذر إرسال دعوة المدير. تحقق من البريد أو إعدادات البريد.");
   const invited = await inviteResponse.json() as { id?: string };
   if (!invited.id) throw new Error("MANAGER_INVITE_NO_USER");

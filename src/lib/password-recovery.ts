@@ -1,3 +1,8 @@
+export function isPasswordSetupHash(hash: string): boolean {
+  const type = new URLSearchParams(hash.replace(/^#/, "")).get("type");
+  return type === "recovery" || type === "invite";
+}
+
 export function isRecoveryHash(hash: string): boolean {
   return new URLSearchParams(hash.replace(/^#/, "")).get("type") === "recovery";
 }
