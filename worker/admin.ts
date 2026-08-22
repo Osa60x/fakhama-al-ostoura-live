@@ -101,10 +101,15 @@ export function validateSettingsBackup(value: unknown): Omit<SettingsBackup, "ex
   return { schema_version: "v1", settings, contacts, adjustments };
 }
 
+export const MANAGER_INVITE_REDIRECT = "https://gold.osa60x.workers.dev/?admin=1";
+
+export function buildManagerInviteUrl(supabaseUrl: string, redirectTo = MANAGER_INVITE_REDIRECT): string {
+  return `${supabaseUrl}/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`;
+}
+
 async function inviteManager(env: Env, actor: AdminIdentity, email: string) {
   const headers = systemHeaders(env);
-  const redirectTo = "https://gold.osa60x.workers.dev/?admin=1";
-  const inviteResponse = await fetch(`${env.SUPABASE_URL}/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, { method: "POST", headers, body: JSON.stringify({ email, data: { role: "manager" } }) });
+  const inviteResponse = await fetch(buildManagerInviteUrl(env.SUPABASE_URL!), { method: "POST", headers, body: JSON.stringify({ email, data: { role: "manager" } }) });
   if (!inviteResponse.ok) throw new ApiError(400, "invalid_input", "تعذر إرسال دعوة المدير. تحقق من البريد أو إعدادات البريد.");
   const invited = await inviteResponse.json() as { id?: string };
   if (!invited.id) throw new Error("MANAGER_INVITE_NO_USER");
