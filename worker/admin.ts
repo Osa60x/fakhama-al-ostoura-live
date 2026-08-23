@@ -101,7 +101,7 @@ export function validateSettingsBackup(value: unknown): Omit<SettingsBackup, "ex
   return { schema_version: "v1", settings, contacts, adjustments };
 }
 
-export const MANAGER_INVITE_REDIRECT = "https://gold.osa60x.workers.dev/?admin=1";
+export const MANAGER_INVITE_REDIRECT = "https://gold.osa60x.workers.dev/?admin=1&invite=1";
 
 export function buildManagerInviteUrl(supabaseUrl: string, redirectTo = MANAGER_INVITE_REDIRECT): string {
   return `${supabaseUrl}/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`;

@@ -12,10 +12,10 @@ vi.mock("../src/lib/supabase", () => ({
 
 import { AdminPage } from "../src/AdminPage";
 
-function renderForHash(hash: string) {
+function renderForHash(hash: string, search = "") {
   Object.defineProperty(globalThis, "window", {
     configurable: true,
-    value: { location: { hash } },
+    value: { location: { hash, search } },
   });
   return renderToStaticMarkup(<AdminPage />);
 }
@@ -30,6 +30,12 @@ describe("AdminPage authentication UI", () => {
       expect(html).toContain("حفظ كلمة المرور");
     },
   );
+
+  it("يعرض نموذج تعيين كلمة المرور عند فقدان hash ووجود invite query", () => {
+    const html = renderForHash("", "?admin=1&invite=1");
+    expect(html).toContain("دعوة مدير");
+    expect(html).toContain("تعيين كلمة مرور جديدة");
+  });
 
   it("يعرض نموذج الدخول للرابط العادي", () => {
     const html = renderForHash("");

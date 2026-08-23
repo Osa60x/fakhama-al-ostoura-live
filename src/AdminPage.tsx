@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BackupControls } from "./BackupControls";
 import { formatTime } from "./lib/format";
-import { isPasswordSetupHash, validateNewPassword } from "./lib/password-recovery";
+import { isInviteHash, isInviteQuery, isPasswordSetupLocation, validateNewPassword } from "./lib/password-recovery";
 import { isAdjustmentInput, normalizeAdjustment, stepAdjustment } from "./lib/adjustments";
 import { supabase } from "./lib/supabase";
 
@@ -34,11 +34,12 @@ export function AdminPage() {
   const [managerEmail, setManagerEmail] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState(() => typeof window !== "undefined" && isPasswordSetupHash(window.location.hash));
+  const [recoveryMode, setRecoveryMode] = useState(() => typeof window !== "undefined" && isPasswordSetupLocation(window.location.hash, window.location.search));
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const configured = Boolean(supabase);
   const owner = identity?.role === "owner";
+  const inviteMode = typeof window !== "undefined" && (isInviteHash(window.location.hash) || isInviteQuery(window.location.search));
   const logoUrl = settings?.logo_path ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/branding/${settings.logo_path}` : null;
 
   const load = async () => {
@@ -63,11 +64,11 @@ export function AdminPage() {
     if (!supabase) return;
     let active = true;
     const subscription = supabase.auth.onAuthStateChange(event => {
-      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && isPasswordSetupHash(window.location.hash) && active) setRecoveryMode(true);
+      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && isPasswordSetupLocation(window.location.hash, window.location.search) && active) setRecoveryMode(true);
     });
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      const passwordSetupLink = isPasswordSetupHash(window.location.hash);
+      const passwordSetupLink = isPasswordSetupLocation(window.location.hash, window.location.search);
       if (passwordSetupLink) setRecoveryMode(true);
       else if (!data.session) void load().catch(() => undefined);
       else void load().catch(() => undefined);
@@ -85,7 +86,7 @@ export function AdminPage() {
   };
   const reset = async () => {
     if (!supabase || !email) return setMessage("اكتب البريد الإلكتروني أولاً.");
-    const result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/?admin=1` });
+    const result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/?admin=1&recovery=1` });
     setMessage(result.error ? result.error.message : "إذا كان البريد مسجلاً، أرسل رابط إعادة التعيين إليه.");
   };
   const updatePassword = async (event: React.FormEvent) => {
@@ -97,10 +98,21 @@ export function AdminPage() {
     const result = await supabase.auth.updateUser({ password: newPassword });
     if (result.error) setMessage("انتهت صلاحية الرابط أو تم استخدامه سابقاً. اطلب رابطاً جديداً ثم افتحه من نفس الجهاز.");
     else {
+      const invitedSession = isInviteHash(window.location.hash) || isInviteQuery(window.location.search);
       setNewPassword(""); setConfirmPassword(""); setRecoveryMode(false);
-      setMessage("تم تعيين كلمة المرور. يمكنك الآن تسجيل الدخول.");
-      await supabase.auth.signOut();
-      setIdentity(null);
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("invite");
+      cleanUrl.searchParams.delete("recovery");
+      cleanUrl.hash = "";
+      window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}`);
+      if (invitedSession) {
+        setMessage("تم إنشاء كلمة المرور وتفعيل الحساب. جارٍ فتح لوحة الإدارة…");
+        await load().catch(error => setMessage(error instanceof Error ? error.message : "تم إنشاء كلمة المرور، لكن تعذر فتح اللوحة."));
+      } else {
+        setMessage("تم تعيين كلمة المرور. يمكنك الآن تسجيل الدخول.");
+        await supabase.auth.signOut();
+        setIdentity(null);
+      }
     }
     setBusy(false);
   };
@@ -153,7 +165,7 @@ export function AdminPage() {
   const logout = async () => { await supabase?.auth.signOut(); setIdentity(null); setRecoveryMode(false); setAdjustments([]); setHealth(null); setSettings(null); setContacts([]); setAuditLogs([]); };
 
   if (!configured) return <main className="admin-shell"><section className="admin-card"><h1>لوحة الإدارة غير مهيأة</h1><p>لا يمكن تسجيل الدخول قبل ضبط عنوان Supabase ومفتاح publishable في بيئة البناء. لا تعرض هذه الصفحة أي بديل أو حساب تجريبي.</p></section></main>;
-  if (recoveryMode) return <main className="admin-shell"><form className="admin-card" onSubmit={updatePassword}><p className="admin-kicker">استعادة آمنة</p><h1>تعيين كلمة مرور جديدة</h1><p>أنشئ كلمة مرور جديدة لحساب الإدارة. يجب ألا تقل عن 8 أحرف أو أرقام.</p><label>كلمة المرور الجديدة<input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} required minLength={8} /></label><label>تأكيد كلمة المرور<input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} required minLength={8} /></label>{message ? <p className="admin-message" aria-live="polite">{message}</p> : null}<button className="admin-primary" disabled={busy}>{busy ? "جارٍ حفظ كلمة المرور…" : "حفظ كلمة المرور"}</button><a className="admin-link" href="/admin">العودة إلى تسجيل الدخول</a></form></main>;
+  if (recoveryMode) return <main className="admin-shell"><form className="admin-card" onSubmit={updatePassword}><p className="admin-kicker">{inviteMode ? "دعوة مدير" : "استعادة آمنة"}</p><h1>تعيين كلمة مرور جديدة</h1><p>أنشئ كلمة مرور جديدة لحساب الإدارة. يجب ألا تقل عن 8 أحرف أو أرقام.</p><label>كلمة المرور الجديدة<input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} required minLength={8} /></label><label>تأكيد كلمة المرور<input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} required minLength={8} /></label>{message ? <p className="admin-message" aria-live="polite">{message}</p> : null}<button className="admin-primary" disabled={busy}>{busy ? "جارٍ حفظ كلمة المرور…" : "حفظ كلمة المرور"}</button><a className="admin-link" href="/admin">العودة إلى تسجيل الدخول</a></form></main>;
   if (!identity) return <main className="admin-shell"><form className="admin-card" onSubmit={login}><p className="admin-kicker">فخامة الأسطورة V2</p><h1>تسجيل الدخول للإدارة</h1><label>البريد الإلكتروني<input type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} required /></label><label>كلمة المرور<input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required /></label>{message ? <p className="admin-message">{message}</p> : null}<button className="admin-primary" disabled={busy}>{busy ? "جارٍ التحقق…" : "تسجيل الدخول"}</button><button type="button" className="admin-link" onClick={reset}>نسيت كلمة المرور</button></form></main>;
 
   return <main className="admin-shell"><header className="admin-header"><div><p className="admin-kicker">{owner ? "OWNER" : "MANAGER"}</p><h1>إدارة فخامة الأسطورة</h1><span>{identity.displayName ?? "حساب الإدارة"}</span></div><div><a href="/">عرض الموقع</a><button onClick={logout}>تسجيل الخروج</button></div></header><p className="admin-message" aria-live="polite">{message}</p><section className="admin-grid"><article className="admin-card admin-prices"><p className="admin-kicker">الأسعار</p><h2>ضبط المتجر</h2><p>يمكنك إضافة أو خصم قيمة بالريال للجرام. لا يملك المدير أي إعدادات أخرى.</p>{adjustments.map(item => (

@@ -1,9 +1,30 @@
-export function isPasswordSetupHash(hash: string): boolean {
+export function isInviteHash(hash: string | undefined): boolean {
+  if (!hash) return false;
+  return new URLSearchParams(hash.replace(/^#/, "")).get("type") === "invite";
+}
+
+export function isInviteQuery(search: string | undefined): boolean {
+  if (!search) return false;
+  return new URLSearchParams(search.replace(/^\?/, "")).get("invite") === "1";
+}
+
+export function isRecoveryQuery(search: string | undefined): boolean {
+  if (!search) return false;
+  return new URLSearchParams(search.replace(/^\?/, "")).get("recovery") === "1";
+}
+
+export function isPasswordSetupHash(hash: string | undefined): boolean {
+  if (!hash) return false;
   const type = new URLSearchParams(hash.replace(/^#/, "")).get("type");
   return type === "recovery" || type === "invite";
 }
 
-export function isRecoveryHash(hash: string): boolean {
+export function isPasswordSetupLocation(hash: string | undefined, search: string | undefined): boolean {
+  return isPasswordSetupHash(hash) || isInviteQuery(search) || isRecoveryQuery(search);
+}
+
+export function isRecoveryHash(hash: string | undefined): boolean {
+  if (!hash) return false;
   return new URLSearchParams(hash.replace(/^#/, "")).get("type") === "recovery";
 }
 
