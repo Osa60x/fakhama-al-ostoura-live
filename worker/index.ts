@@ -3,7 +3,6 @@ import { refreshPriceSnapshot } from "./price-refresh";
 import { formatPublicDashboard, type DashboardRow } from "./public-dashboard";
 import { readPublicHistory, type ChartRange } from "./price-history";
 import { adminResponse } from "./admin";
-import { corsHeaders, withCors } from "./cors";
 
 const noStore = { "cache-control": "no-store", "content-type": "application/json; charset=utf-8" };
 
@@ -30,23 +29,15 @@ async function publicStatus(env: Env, range: ChartRange) {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) return new Response(null, { status: 204, headers: corsHeaders(request) });
     if (url.pathname === "/api/public/dashboard" && request.method === "GET") {
       const requestedRange = url.searchParams.get("range");
       const range: ChartRange = requestedRange === "week" || requestedRange === "month" ? requestedRange : "day";
-      return withCors(request, await publicStatus(env, range));
-    }
-    if (url.pathname === "/api/public/price-adjustments" && request.method === "GET") {
-      const response = await fetch(`${env.SUPABASE_URL}/rest/v1/price_adjustments?select=carat,adjustment_sar,updated_at&order=carat.desc`, {
-        headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY ?? "", Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY ?? ""}` }
-      });
-      if (!response.ok) return withCors(request, json({ code: "unavailable" }, { status: 503 }));
-      return withCors(request, json({ adjustments: await response.json() }));
+      return publicStatus(env, range);
     }
     if (url.pathname === "/api/health" && request.method === "GET") {
-      return withCors(request, json({ status: env.SUPABASE_URL ? "configured" : "unconfigured" }));
+      return json({ status: env.SUPABASE_URL ? "configured" : "unconfigured" });
     }
-    if (url.pathname.startsWith("/api/admin/")) return withCors(request, await adminResponse(request, env, url.pathname));
+    if (url.pathname.startsWith("/api/admin/")) return adminResponse(request, env, url.pathname);
     if (request.method === "GET" && url.pathname === "/admin") return Response.redirect(new URL("/?admin=1", request.url), 302);
     return env.ASSETS.fetch(request);
   },
