@@ -13,6 +13,27 @@ export function validateSettings(value: unknown): Record<string, string | number
   if (typeof result.site_name === "string" && (result.site_name.length < 2 || result.site_name.length > 64)) throw new ApiError(400, "invalid_input", "طول اسم المتجر غير صالح.");
   if (typeof result.address === "string" && (result.address.length < 2 || result.address.length > 160)) throw new ApiError(400, "invalid_input", "طول العنوان غير صالح.");
   for (const key of ["title_color", "subtitle_color"] as const) if (typeof result[key] === "string" && !/^#[0-9a-f]{6}$/i.test(result[key] as string)) throw new ApiError(400, "invalid_input", "لون النص يجب أن يكون بصيغة HEX.");
+
+  const enumValues = {
+    palette: ["gold_cream", "black_gold", "emerald_gold", "navy_gold"],
+    theme_mode: ["light", "dark", "system"],
+    title_font: ["Cairo", "Tajawal", "Noto Kufi Arabic"],
+    chart_default_range: ["day", "week", "month"],
+    chart_mode: ["line", "area"]
+  } as const;
+  for (const [key, values] of Object.entries(enumValues)) {
+    const value = result[key];
+    if (value !== undefined && (typeof value !== "string" || !values.includes(value as never))) throw new ApiError(400, "invalid_input", `قيمة ${key} غير صالحة.`);
+  }
+
+  const numericBounds = { title_size: [24, 48], title_weight: [600, 800], subtitle_size: [12, 22], subtitle_weight: [400, 600] } as const;
+  for (const [key, [minimum, maximum]] of Object.entries(numericBounds)) {
+    const value = result[key];
+    if (value !== undefined && (typeof value !== "number" || !Number.isInteger(value) || value < minimum || value > maximum)) throw new ApiError(400, "invalid_input", `قيمة ${key} غير صالحة.`);
+  }
+  if (result.title_weight !== undefined && ![600, 700, 800].includes(result.title_weight as number)) throw new ApiError(400, "invalid_input", "وزن العنوان غير صالح.");
+  if (result.subtitle_weight !== undefined && ![400, 500, 600].includes(result.subtitle_weight as number)) throw new ApiError(400, "invalid_input", "وزن العنوان الفرعي غير صالح.");
+  for (const key of ["show_address", "chart_visible"] as const) if (result[key] !== undefined && typeof result[key] !== "boolean") throw new ApiError(400, "invalid_input", `قيمة ${key} غير صالحة.`);
   return result;
 }
 

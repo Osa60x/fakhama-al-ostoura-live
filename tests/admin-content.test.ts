@@ -12,6 +12,23 @@ describe("owner content validation", () => {
     expect(() => validateSettings({ title_color: "gold" })).toThrow(ApiError);
   });
 
+  it("يرفض خيارات العرض وأنواعها وحدودها عندما لا تطابق عقد الإعدادات", () => {
+    for (const invalid of [
+      { palette: "copper" },
+      { theme_mode: "dawn" },
+      { title_font: "Inter" },
+      { title_size: 49 },
+      { title_weight: 500 },
+      { subtitle_size: "15" },
+      { subtitle_weight: 700 },
+      { chart_visible: "true" },
+      { chart_default_range: "year" },
+      { chart_mode: "bar" }
+    ]) {
+      expect(() => validateSettings(invalid)).toThrow(ApiError);
+    }
+  });
+
   it("يقبل أنواع التواصل المحددة ويرفض نوعاً أو طولاً غير صالح", () => {
     expect(validateContacts([{ kind: "whatsapp", label: "واتساب", value: "https://wa.me/966500000000", sort_order: 0, is_active: true }])[0].kind).toBe("whatsapp");
     expect(() => validateContacts([{ kind: "map", label: "خ", value: "x" }])).toThrow(ApiError);
