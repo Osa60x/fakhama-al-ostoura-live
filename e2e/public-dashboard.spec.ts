@@ -51,3 +51,26 @@ test("تبقى أدوات الأسعار والحاسبة قابلة للاست�
   await expect(page.getByRole("button", { name: "مشاركة" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "تحديث العرض" })).toBeEnabled();
 });
+
+
+test("تستخدم كل ثيمة حركة خلفية مميزة وتحترم تفضيل تقليل الحركة", async ({ page }) => {
+  const expectedMotion = {
+    gold_cream: "gilded-reflection",
+    emerald_gold: "emerald-tide",
+    navy_gold: "sapphire-orbit"
+  } as const;
+
+  for (const [skin] of themes) {
+    await mockDashboard(page, skin);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/", { waitUntil: "networkidle" });
+    await expect(page.locator("main.app-shell")).toHaveAttribute("data-skin", skin);
+    const animationName = await page.locator("main.app-shell").evaluate(element => getComputedStyle(element, "::before").animationName);
+    expect(animationName).toContain(expectedMotion[skin]);
+  }
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const reducedAnimationName = await page.locator("main.app-shell").evaluate(element => getComputedStyle(element, "::before").animationName);
+  expect(reducedAnimationName).toBe("none");
+});
