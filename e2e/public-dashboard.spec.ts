@@ -74,3 +74,14 @@ test("تستخدم كل ثيمة حركة خلفية مميزة وتحترم ت�
   const reducedAnimationName = await page.locator("main.app-shell").evaluate(element => getComputedStyle(element, "::before").animationName);
   expect(reducedAnimationName).toBe("none");
 });
+
+
+test("لا تحجز طبقات الخلفية الحركية تحسين الرسم بصورة دائمة", async ({ page }) => {
+  await mockDashboard(page, "emerald_gold");
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  const willChange = await page.locator("main.app-shell").evaluate(element => getComputedStyle(element, "::before").willChange);
+  expect(willChange).toBe("auto");
+  const animationName = await page.locator("main.app-shell").evaluate(element => getComputedStyle(element, "::before").animationName);
+  expect(animationName).toBe("emerald-tide");
+});
