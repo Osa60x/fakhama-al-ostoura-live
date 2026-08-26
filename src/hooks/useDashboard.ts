@@ -5,9 +5,13 @@ export type PublicDashboard = {
   logo_path?: string | null;
   address?: string;
   show_address?: boolean;
+  palette?: string;
   title_font?: string;
+  title_size?: number;
   title_weight?: number;
   title_color?: string;
+  subtitle_size?: number;
+  subtitle_weight?: number;
   subtitle_color?: string;
   xau_usd?: number | string | null;
   final_24_sar?: number | string | null;

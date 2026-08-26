@@ -60,7 +60,7 @@ type SettingsBackup = {
   adjustments: Array<{ carat: "24" | "21" | "18"; adjustment_sar: number }>;
 };
 
-const backupSettingKeys = ["site_name", "address", "show_address", "palette", "theme_mode", "title_font", "title_size", "title_weight", "title_color", "subtitle_size", "subtitle_weight", "subtitle_color", "chart_visible", "chart_default_range", "chart_mode"];
+const backupSettingKeys = ["site_name", "address", "show_address", "palette", "title_font", "title_size", "title_weight", "title_color", "subtitle_size", "subtitle_weight", "subtitle_color", "chart_visible", "chart_default_range", "chart_mode"];
 
 function backupSettings(value: Record<string, unknown>) {
   return Object.fromEntries(backupSettingKeys.flatMap(key => key in value ? [[key, value[key]]] : []));
@@ -94,7 +94,9 @@ export function validateSettingsBackup(value: unknown): Omit<SettingsBackup, "ex
   if (backup.schema_version !== "v1" || !("settings" in backup) || !("contacts" in backup) || !("adjustments" in backup)) {
     throw new ApiError(400, "invalid_input", "إصدار النسخة الاحتياطية أو محتواها غير صالح.");
   }
-  const settings = validateSettings(backup.settings);
+  if (typeof backup.settings !== "object" || backup.settings === null || Array.isArray(backup.settings)) throw new ApiError(400, "invalid_input", "إعدادات النسخة الاحتياطية غير صالحة.");
+  const { theme_mode: _legacyTheme, ...settingsPayload } = backup.settings as Record<string, unknown>;
+  const settings = validateSettings(settingsPayload);
   const contacts = validateContacts(backup.contacts);
   const adjustments = validateAdjustments(backup.adjustments);
   if (adjustments.length !== 3) throw new ApiError(400, "invalid_input", "يجب أن تتضمن النسخة تعديلات 24K و21K و18K.");

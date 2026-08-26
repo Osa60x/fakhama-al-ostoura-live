@@ -1,9 +1,10 @@
 import { ApiError } from "./auth";
 
 export function validateSettings(value: unknown): Record<string, string | number | boolean> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new ApiError(400, "invalid_input", "صيغة الإعدادات غير صالحة.");
+      if (typeof value !== "object" || value === null || Array.isArray(value)) throw new ApiError(400, "invalid_input", "صيغة الإعدادات غير صالحة.");
+
   const source = value as Record<string, unknown>;
-  const allowed = new Set(["site_name", "address", "show_address", "palette", "theme_mode", "title_font", "title_size", "title_weight", "title_color", "subtitle_size", "subtitle_weight", "subtitle_color", "chart_visible", "chart_default_range", "chart_mode"]);
+  const allowed = new Set(["site_name", "address", "show_address", "palette", "title_font", "title_size", "title_weight", "title_color", "subtitle_size", "subtitle_weight", "subtitle_color", "chart_visible", "chart_default_range", "chart_mode"]);
   const result: Record<string, string | number | boolean> = {};
   for (const [key, item] of Object.entries(source)) {
     if (!allowed.has(key)) throw new ApiError(400, "invalid_input", "يتضمن الطلب حقلاً غير مسموح.");
@@ -16,7 +17,6 @@ export function validateSettings(value: unknown): Record<string, string | number
 
   const enumValues = {
     palette: ["gold_cream", "black_gold", "emerald_gold", "navy_gold"],
-    theme_mode: ["light", "dark", "system"],
     title_font: ["Cairo", "Tajawal", "Noto Kufi Arabic"],
     chart_default_range: ["day", "week", "month"],
     chart_mode: ["line", "area"]

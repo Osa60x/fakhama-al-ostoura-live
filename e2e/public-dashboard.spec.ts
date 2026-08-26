@@ -1,12 +1,53 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("يعرض لوحة أسعار عامة قابلة للتفاعل", async ({ page }) => {
-  const response = await page.goto("/", { waitUntil: "networkidle" });
+const themes = [
+  ["gold_cream", "ذهب الديوان"],
+  ["emerald_gold", "زمرد الصائغ"],
+  ["navy_gold", "ليل الياقوت"]
+] as const;
 
-  expect(response?.status()).toBe(200);
-  await expect(page).toHaveTitle(/فخامة الأسطورة/);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+async function mockDashboard(page: Page, palette: string) {
+  await page.route("**/api/public/dashboard?range=*", async route => {
+    const range = new URL(route.request().url()).searchParams.get("range");
+    await route.fulfill({ json: {
+      data: {
+        site_name: "فخامة الأسطورة للذهب والمجوهرات",
+        palette,
+        xau_usd: 3000,
+        final_24_sar: 422.15,
+        final_21_sar: 369.38,
+        final_18_sar: 316.61,
+        fetched_at: "2026-08-26T00:00:00.000Z"
+      },
+      freshness: "fresh",
+      history: range === "day" ? [{ bucket: "2026-08-26T00:00:00Z", price_sar: 420 }, { bucket: "2026-08-26T01:00:00Z", price_sar: 422.15 }] : [],
+      status: "ok"
+    } });
+  });
+}
 
-  await page.getByRole("button", { name: "مظهر داكن" }).click();
-  await expect(page.locator("main.app-shell")).toHaveAttribute("data-theme", "dark");
+for (const [skin, label] of themes) {
+  test(`يعرض ثيمة ${label} من إعدادات المتجر دون وضع ليلي أو نهاري`, async ({ page }) => {
+    await mockDashboard(page, skin);
+    await page.goto("/", { waitUntil: "networkidle" });
+
+    await expect(page).toHaveTitle(/فخامة الأسطورة/);
+    await expect(page.locator("main.app-shell")).toHaveAttribute("data-skin", skin);
+    await expect(page.getByRole("button", { name: "مظهر فاتح" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "مظهر داكن" })).toHaveCount(0);
+  });
+}
+
+test("تبقى أدوات الأسعار والحاسبة قابلة للاستخدام بعد تطبيق الثيمة", async ({ page }) => {
+  await mockDashboard(page, "emerald_gold");
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await page.getByRole("button", { name: "أسبوعي" }).click();
+  await expect(page.getByRole("button", { name: "أسبوعي" })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByLabel("الوزن بالجرام").fill("12");
+  await page.locator('select[name="carat"]').selectOption("24");
+  await expect(page.getByText("القيمة التقديرية")).toBeVisible();
+  await expect(page.getByRole("button", { name: "مشاركة" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "تحديث العرض" })).toBeEnabled();
 });

@@ -16,6 +16,7 @@ describe("owner content validation", () => {
     for (const invalid of [
       { palette: "copper" },
       { theme_mode: "dawn" },
+      { theme_mode: "dark" },
       { title_font: "Inter" },
       { title_size: 49 },
       { title_weight: 500 },

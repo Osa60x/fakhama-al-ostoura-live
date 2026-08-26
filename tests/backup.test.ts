@@ -12,4 +12,8 @@ describe("نسخة الإعدادات", () => {
   it("تقبل إعدادات غير حساسة بإصدار معروف", () => expect(validateSettingsBackup(validBackup).schema_version).toBe("v1"));
   it("ترفض إصداراً غير مدعوم", () => expect(() => validateSettingsBackup({ ...validBackup, schema_version: "v2" })).toThrow("إصدار النسخة"));
   it("ترفض نسخة تفتقد أحد العيارات الثلاثة", () => expect(() => validateSettingsBackup({ ...validBackup, adjustments: validBackup.adjustments.slice(0, 2) })).toThrow("24K"));
+  it("تتجاهل وضع المظهر القديم عند استعادة نسخة سابقة", () => {
+    const restored = validateSettingsBackup({ ...validBackup, settings: { ...validBackup.settings, theme_mode: "dark" } });
+    expect(restored.settings).not.toHaveProperty("theme_mode");
+  });
 });
