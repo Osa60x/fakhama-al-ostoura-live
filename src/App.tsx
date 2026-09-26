@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatOunce, formatSar, formatTime } from "./lib/format";
 import { toNumber, useDashboard, type ChartRange, type Freshness, type HistoryPoint } from "./hooks/useDashboard";
 import { STORE_THEMES, resolveStoreTheme } from "./lib/store-theme";
@@ -42,6 +42,11 @@ export function App() {
   const adminRoute = window.location.pathname === "/admin" || new URLSearchParams(window.location.search).get("admin") === "1";
   if (adminRoute) return <Suspense fallback={<main className="app-shell"><p>جارٍ تحميل الإدارة…</p></main>}><AdminPage /></Suspense>;
   const [range, setRange] = useState<ChartRange>("day");
+  const [introVisible, setIntroVisible] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIntroVisible(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, []);
   const { loading, reply } = useDashboard(range);
   const [grams, setGrams] = useState("10");
   const [carat, setCarat] = useState<"24" | "21" | "18">("21");
@@ -78,7 +83,8 @@ export function App() {
     "--subtitle-weight": data?.subtitle_weight ?? 500
   } as CSSProperties;
 
-  return <main className="app-shell" data-skin={skin} style={dynamicStyle}>
+  return <main className={`app-shell${introVisible ? " intro-active" : ""}`} data-skin={skin} style={dynamicStyle}>
+    {introVisible ? <div className="intro-screen" role="status" aria-label="جارٍ تجهيز لوحة أسعار الذهب"><div className="intro-emblem"><Icon name="diamond" size={42}/></div><p>فخامة الأسطورة</p><span>نحو رؤية أوضح للذهب</span><button onClick={() => setIntroVisible(false)}>الدخول الآن</button></div> : null}
     <header className="topbar surface">
       <div className="brand-lockup">{logoUrl ? <img className="brand-logo" src={logoUrl} alt="شعار المتجر" width="52" height="52" /> : <span className="brand-mark"><Icon name="diamond" size={22}/></span>}<div><p>أسعار الذهب</p><h1>{data?.site_name ?? "فخامة الأسطورة"}</h1></div></div>
       <span className="skin-label" aria-label={`ثيمة المتجر: ${STORE_THEMES[skin].label}`}>{STORE_THEMES[skin].label}</span>
