@@ -104,7 +104,7 @@ export function App() {
     <section className="hero" id="top" aria-labelledby="hero-heading"><div className="hero-copy"><span className="hero-kicker"><Icon name="spark" size={14}/> مرجعك اليومي للذهب</span><h2 id="hero-heading">كل لحظة<br/><em>تستحق ذهبًا.</em></h2><p>لقطة موثقة للسوق، تُقدّم بهدوء يليق بقراراتك الثمينة.</p><a className="hero-cta" href="#prices">اكتشف سعر اليوم <Icon name="arrow" size={17}/></a><div className="hero-note"><span>01</span><span>السوق بوضوح</span><span className="line"/><span>آخر تحديث {formatTime(data?.fetched_at)}</span></div></div><div className="hero-art" role="img" aria-label="تشكيلة مجوهرات ذهبية فاخرة"><div className="hero-art-caption"><small>THE ESSENTIAL</small><strong>24K</strong></div></div></section>
 
     <section className="market-summary surface market-strip" aria-labelledby="market-heading">
-      <div><FreshnessBadge value={freshness} loading={loading}/><p className="eyebrow">سعر أونصة الذهب</p><h2 id="market-heading">{loading ? "…" : `${formatOunce(toNumber(data?.xau_usd))} $`}</h2><p className="market-meta">آخر لقطة: <time>{formatTime(data?.fetched_at)}</time></p></div>
+      <div><FreshnessBadge value={freshness} loading={loading}/><p className="eyebrow">سعر أونصة الذهب</p><h2 id="market-heading">{loading ? "…" : `${formatOunce(toNumber(data?.xau_usd))} $`}</h2><p className="market-meta">آخر لقطة: <time>{formatTime(data?.fetched_at)}</time> <span className="source-pulse"><i /> XAU/USD حي</span></p></div>
       <div className="market-aside"><span>الذهب</span><Icon name="diamond" size={62}/><b>قيمة<br/>تتوارثها الأجيال</b></div>
     </section>
 

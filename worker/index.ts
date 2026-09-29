@@ -5,6 +5,7 @@ import { readPublicHistory, type ChartRange } from "./price-history";
 import { adminResponse } from "./admin";
 
 const noStore = { "cache-control": "no-store", "content-type": "application/json; charset=utf-8" };
+const LIVE_QUOTE_URL = "https://sabaaek-gold-api.osa60x.workers.dev/quote";
 
 function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), { ...init, headers: { ...noStore, ...(init.headers ?? {}) } });
@@ -26,6 +27,12 @@ async function publicStatus(env: Env, range: ChartRange) {
   return json({ ...formatPublicDashboard(rows), history, status: "ok" });
 }
 
+async function liveQuote() {
+  const response = await fetch(LIVE_QUOTE_URL, { headers: { accept: "application/json" } });
+  if (!response.ok) return json({ error: "live_quote_unavailable" }, { status: 503 });
+  return new Response(await response.text(), { headers: { ...noStore, "cache-control": "public, max-age=12, stale-while-revalidate=12" } });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -34,6 +41,7 @@ export default {
       const range: ChartRange = requestedRange === "week" || requestedRange === "month" ? requestedRange : "day";
       return publicStatus(env, range);
     }
+    if (url.pathname === "/api/live-quote" && request.method === "GET") return liveQuote();
     if (url.pathname === "/api/health" && request.method === "GET") {
       return json({ status: env.SUPABASE_URL ? "configured" : "unconfigured" });
     }
