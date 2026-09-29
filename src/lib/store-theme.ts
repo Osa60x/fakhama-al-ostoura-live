@@ -1,5 +1,5 @@
 export const STORE_THEMES = {
-  gold_cream: { label: "ذهب الديوان" },
+  gold_cream: { label: "بريق الأسطورة" },
   emerald_gold: { label: "زمرد الصائغ" },
   navy_gold: { label: "ليل الياقوت" }
 } as const;

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatOunce, formatSar, formatTime } from "./lib/format";
 import { toNumber, useDashboard, type ChartRange, type Freshness, type HistoryPoint } from "./hooks/useDashboard";
-import { STORE_THEMES, resolveStoreTheme } from "./lib/store-theme";
+import { resolveStoreTheme } from "./lib/store-theme";
 import "./chart.css";
 
 const AdminPage = lazy(async () => ({ default: (await import("./AdminPage")).AdminPage }));
@@ -40,6 +40,13 @@ function MiniChart({ points }: { points: HistoryPoint[] }) {
   return <div className="mini-chart" onMouseLeave={() => setHovered(null)}><svg viewBox="0 0 300 100" role="img" aria-label="مخطط سعر عيار 24 التاريخي"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="currentColor" stopOpacity=".24"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs><path d={`M10,88 ${line.split(" ").map(point => `L${point}`).join(" ")} L290,88 Z`} fill="url(#chartFill)"/><polyline points={line} fill="none" stroke="currentColor" strokeWidth="2.2" vectorEffect="non-scaling-stroke"/>{chartPoints.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r="7" fill="transparent" onMouseEnter={() => setHovered(index)}/>)}</svg>{active ? <span className="chart-tooltip" style={{ left: `${Math.max(8, Math.min(82, active.x / 3))}%` }}>{formatSar(active.value)} ⃁</span> : null}</div>;
 }
 
+function FloatingGold() {
+  const pieces = Array.from({ length: 24 }, (_, index) => ({
+    left: `${(index * 37) % 101}%`, delay: `${-((index * 1.7) % 18)}s`, duration: `${12 + (index % 7) * 2.2}s`, size: `${8 + (index % 4) * 5}px`, drift: `${-38 + (index % 9) * 11}px`
+  }));
+  return <div className="goldfall" aria-hidden="true">{pieces.map((piece, index) => <i key={index} className={index % 5 === 0 ? "goldfall-jewel" : index % 3 === 0 ? "goldfall-flake" : "goldfall-orb"} style={{ "--left": piece.left, "--delay": piece.delay, "--duration": piece.duration, "--size": piece.size, "--drift": piece.drift } as CSSProperties} />)}</div>;
+}
+
 export function App() {
   const adminRoute = window.location.pathname === "/admin" || new URLSearchParams(window.location.search).get("admin") === "1";
   if (adminRoute) return <Suspense fallback={<main className="app-shell"><p>جارٍ تحميل الإدارة…</p></main>}><AdminPage /></Suspense>;
@@ -55,20 +62,21 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const data = reply?.data;
   const skin = resolveStoreTheme(data?.palette);
+  const displaySiteName = data?.site_name && !data.site_name.includes("ديوان") ? data.site_name : "فخامة الأسطورة";
   const logoUrl = data?.logo_path ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/branding/${data.logo_path}` : null;
   const freshness = reply?.freshness ?? "unavailable";
   const prices = { "24": toNumber(data?.final_24_sar), "21": toNumber(data?.final_21_sar), "18": toNumber(data?.final_18_sar) };
   const weight = Number(grams);
   const estimate = Number.isFinite(weight) && weight > 0 && prices[carat] !== null ? weight * (prices[carat] ?? 0) : null;
   const shareText = useMemo(() => data && prices["24"] !== null && prices["21"] !== null && prices["18"] !== null ? [
-    data.site_name ?? "فخامة الأسطورة",
+    displaySiteName,
     `سعر الأونصة: ${formatOunce(toNumber(data.xau_usd))} $`,
     `24K: ${formatSar(prices["24"])} ⃁ / جرام`,
     `21K: ${formatSar(prices["21"])} ⃁ / جرام`,
     `18K: ${formatSar(prices["18"])} ⃁ / جرام`,
     `وقت اللقطة: ${formatTime(data.fetched_at)}`,
     window.location.origin
-  ].join("\n") : null, [data, prices]);
+  ].join("\n") : null, [data, prices, displaySiteName]);
   const copyShare = async () => {
     if (!shareText || !navigator.clipboard) return;
     await navigator.clipboard.writeText(shareText);
@@ -86,11 +94,12 @@ export function App() {
   } as CSSProperties;
 
   return <main className={`app-shell${introVisible ? " intro-active" : ""}`} data-skin={skin} style={dynamicStyle}>
+    <FloatingGold />
     {introVisible ? <div className="intro-screen" role="status" aria-label="جارٍ تجهيز لوحة أسعار الذهب"><div className="intro-emblem"><Icon name="diamond" size={42}/></div><p>فخامة الأسطورة</p><span>نحو رؤية أوضح للذهب</span><button onClick={() => setIntroVisible(false)}>الدخول الآن</button></div> : null}
     <header className="topbar surface">
-      <a className="brand-lockup" href="#top" aria-label="العودة إلى البداية">{logoUrl ? <img className="brand-logo" src={logoUrl} alt="شعار المتجر" width="52" height="52" /> : <span className="brand-mark"><Icon name="diamond" size={22}/></span>}<div><p>أسعار الذهب</p><h1>{data?.site_name ?? "فخامة الأسطورة"}</h1></div></a>
+      <a className="brand-lockup" href="#top" aria-label="العودة إلى البداية">{logoUrl ? <img className="brand-logo" src={logoUrl} alt="شعار المتجر" width="52" height="52" /> : <span className="brand-mark"><Icon name="diamond" size={22}/></span>}<div><p>المشغل المعاصر</p><h1>{displaySiteName}</h1></div></a>
       <nav aria-label="التنقل الرئيسي"><a href="#prices">الأسعار</a><a href="#story">الحكاية</a><a href="#calculator">الحاسبة</a></nav>
-      <span className="skin-label" aria-label={`ثيمة المتجر: ${STORE_THEMES[skin].label}`}>{STORE_THEMES[skin].label}</span>
+      <span className="live-mark"><i /> مباشر</span>
     </header>
     <section className="hero" id="top" aria-labelledby="hero-heading"><div className="hero-copy"><span className="hero-kicker"><Icon name="spark" size={14}/> مرجعك اليومي للذهب</span><h2 id="hero-heading">كل لحظة<br/><em>تستحق ذهبًا.</em></h2><p>لقطة موثقة للسوق، تُقدّم بهدوء يليق بقراراتك الثمينة.</p><a className="hero-cta" href="#prices">اكتشف سعر اليوم <Icon name="arrow" size={17}/></a><div className="hero-note"><span>01</span><span>السوق بوضوح</span><span className="line"/><span>آخر تحديث {formatTime(data?.fetched_at)}</span></div></div><div className="hero-art" role="img" aria-label="تشكيلة مجوهرات ذهبية فاخرة"><div className="hero-art-caption"><small>THE ESSENTIAL</small><strong>24K</strong></div></div></section>
 
