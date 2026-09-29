@@ -6,7 +6,7 @@ import "./chart.css";
 
 const AdminPage = lazy(async () => ({ default: (await import("./AdminPage")).AdminPage }));
 
-type IconName = "diamond" | "share" | "refresh" | "chart" | "calc" | "pin";
+type IconName = "diamond" | "share" | "refresh" | "chart" | "calc" | "pin" | "arrow" | "spark";
 
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -16,7 +16,9 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     refresh: <><path d="M20 11a8 8 0 0 0-14.8-4M4 7V3m0 4h4M4 13a8 8 0 0 0 14.8 4M20 17v4m0-4h-4"/></>,
     chart: <><path d="M4 19V5M4 19h16"/><path d="m7 15 4-4 3 2 5-6"/></>,
     calc: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h1M12 12h1M16 12h1M8 16h1M12 16h1M16 16h1"/></>,
-    pin: <><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></>
+    pin: <><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></>,
+    arrow: <><path d="M5 12h14M13 6l6 6-6 6"/></>,
+    spark: <><path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4L12 3Z"/><path d="m19 16 .6 2.4L22 19l-2.4.6L19 22l-.6-2.4L16 19l2.4-.6L19 16Z"/></>
   };
   return <svg {...common}>{paths[name]}</svg>;
 }
@@ -86,21 +88,26 @@ export function App() {
   return <main className={`app-shell${introVisible ? " intro-active" : ""}`} data-skin={skin} style={dynamicStyle}>
     {introVisible ? <div className="intro-screen" role="status" aria-label="جارٍ تجهيز لوحة أسعار الذهب"><div className="intro-emblem"><Icon name="diamond" size={42}/></div><p>فخامة الأسطورة</p><span>نحو رؤية أوضح للذهب</span><button onClick={() => setIntroVisible(false)}>الدخول الآن</button></div> : null}
     <header className="topbar surface">
-      <div className="brand-lockup">{logoUrl ? <img className="brand-logo" src={logoUrl} alt="شعار المتجر" width="52" height="52" /> : <span className="brand-mark"><Icon name="diamond" size={22}/></span>}<div><p>أسعار الذهب</p><h1>{data?.site_name ?? "فخامة الأسطورة"}</h1></div></div>
+      <a className="brand-lockup" href="#top" aria-label="العودة إلى البداية">{logoUrl ? <img className="brand-logo" src={logoUrl} alt="شعار المتجر" width="52" height="52" /> : <span className="brand-mark"><Icon name="diamond" size={22}/></span>}<div><p>أسعار الذهب</p><h1>{data?.site_name ?? "فخامة الأسطورة"}</h1></div></a>
+      <nav aria-label="التنقل الرئيسي"><a href="#prices">الأسعار</a><a href="#story">الحكاية</a><a href="#calculator">الحاسبة</a></nav>
       <span className="skin-label" aria-label={`ثيمة المتجر: ${STORE_THEMES[skin].label}`}>{STORE_THEMES[skin].label}</span>
     </header>
+    <section className="hero" id="top" aria-labelledby="hero-heading"><div className="hero-copy"><span className="hero-kicker"><Icon name="spark" size={14}/> مرجعك اليومي للذهب</span><h2 id="hero-heading">كل لحظة<br/><em>تستحق ذهبًا.</em></h2><p>لقطة موثقة للسوق، تُقدّم بهدوء يليق بقراراتك الثمينة.</p><a className="hero-cta" href="#prices">اكتشف سعر اليوم <Icon name="arrow" size={17}/></a><div className="hero-note"><span>01</span><span>السوق بوضوح</span><span className="line"/><span>آخر تحديث {formatTime(data?.fetched_at)}</span></div></div><div className="hero-art" role="img" aria-label="تشكيلة مجوهرات ذهبية فاخرة"><div className="hero-art-caption"><small>THE ESSENTIAL</small><strong>24K</strong></div></div></section>
 
-    <section className="market-summary surface" aria-labelledby="market-heading">
+    <section className="market-summary surface market-strip" aria-labelledby="market-heading">
       <div><FreshnessBadge value={freshness} loading={loading}/><p className="eyebrow">سعر أونصة الذهب</p><h2 id="market-heading">{loading ? "…" : `${formatOunce(toNumber(data?.xau_usd))} $`}</h2><p className="market-meta">آخر لقطة: <time>{formatTime(data?.fetched_at)}</time></p></div>
-      <Icon name="diamond" size={140}/>
+      <div className="market-aside"><span>الذهب</span><Icon name="diamond" size={62}/><b>قيمة<br/>تتوارثها الأجيال</b></div>
     </section>
 
-    <section className="prices-section" aria-labelledby="prices-heading">
+    <section className="prices-section" id="prices" aria-labelledby="prices-heading">
       <div className="section-heading"><div><p className="eyebrow">سعر الجرام</p><h2 id="prices-heading">العيارات المتاحة</h2></div><div className="actions"><button className="button" disabled={!shareText} onClick={copyShare} aria-live="polite"><Icon name="share" size={17}/>{copied ? "تم النسخ" : "مشاركة"}</button><button className="button" onClick={() => window.location.reload()}><Icon name="refresh" size={17}/>تحديث العرض</button></div></div>
-      <div className="price-grid">{(["24", "21", "18"] as const).map(item => <article className="price-card surface" key={item}><span>{item}K</span><strong>{loading ? "…" : formatSar(prices[item])}</strong><b>⃁ <em>/ جرام</em></b><small>{freshness === "fresh" ? "سعر استرشادي" : freshness === "stale" ? "آخر سعر متاح" : "بانتظار لقطة موثقة"}</small></article>)}</div>
+      <div className="price-grid">{(["24", "21", "18"] as const).map((item, index) => <article className={`price-card surface price-card-${index + 1}`} key={item}><div className="card-top"><span>{item}K</span><small>{index === 0 ? "الأعلى نقاءً" : index === 1 ? "الأكثر طلبًا" : "لمسة يومية"}</small></div><strong>{loading ? "…" : formatSar(prices[item])}</strong><b>⃁ <em>/ جرام</em></b><small className="price-status">{freshness === "fresh" ? "سعر استرشادي" : freshness === "stale" ? "آخر سعر متاح" : "بانتظار لقطة موثقة"}</small></article>)}</div>
     </section>
 
-    <section className="insights-grid">
+    <section className="manifesto surface" id="story"><div className="manifesto-number">02</div><div><p className="eyebrow">فلسفة الأسطورة</p><h2>نؤمن أن الذهب<br/><em>ليس سعرًا فقط.</em></h2></div><p>إنه وعدٌ بالجودة، وذكرى تُصاغ بعناية، وقيمة تعرف كيف تبقى. لذلك نصنع لك لوحة واضحة، هادئة، وموثوقة في كل زيارة.</p></section>
+    <section className="collections" aria-labelledby="collections-heading"><div className="section-heading"><div><p className="eyebrow">03 / من المشغل</p><h2 id="collections-heading">تفاصيل تستحق التوقف</h2></div><span className="section-index">مختارات بصرية</span></div><div className="collection-grid"><article className="collection-card collection-necklace"><img src="/collection-necklace.jpg" alt="قلادة ذهبية رقيقة على حرير عاجي"/><div><small>01 — هدوء الخط</small><h3>ذهب يُشبه الضوء</h3></div></article><article className="collection-card collection-ring"><img src="/collection-ring.jpg" alt="خاتم ذهبي منحوت على مخمل داكن"/><div><small>02 — قوة التفاصيل</small><h3>حضور بلا ضجيج</h3></div></article></div></section>
+
+    <section className="insights-grid" id="calculator">
       <article className="chart-card surface"><div className="section-heading"><div><p className="eyebrow">متابعة مرئية</p><h2><Icon name="chart" size={20}/> مخطط السعر</h2></div><div className="range-tabs" aria-label="نطاق المخطط">{(["day", "week", "month"] as ChartRange[]).map(item => <button key={item} className={range === item ? "active" : ""} aria-pressed={range === item} onClick={() => setRange(item)}>{item === "day" ? "يومي" : item === "week" ? "أسبوعي" : "شهري"}</button>)}</div></div><MiniChart points={reply?.history ?? []}/></article>
       <article className="calculator-card surface"><p className="eyebrow"><Icon name="calc" size={17}/> أداة استرشادية</p><h2>حاسبة قيمة الذهب</h2><label>الوزن بالجرام<input name="grams" autoComplete="off" inputMode="decimal" value={grams} onChange={event => setGrams(event.target.value)} /></label><label>العيار<select name="carat" value={carat} onChange={event => setCarat(event.target.value as "24" | "21" | "18")}><option value="24">عيار 24</option><option value="21">عيار 21</option><option value="18">عيار 18</option></select></label><div className="estimate"><span>القيمة التقديرية</span><strong>{formatSar(estimate)} <b>⃁</b></strong></div><p>لا تشمل المصنعية أو الضريبة أو فروقات المتاجر.</p></article>
     </section>
