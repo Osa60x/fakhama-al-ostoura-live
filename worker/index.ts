@@ -6,6 +6,7 @@ import { adminResponse } from "./admin";
 
 const noStore = { "cache-control": "no-store", "content-type": "application/json; charset=utf-8" };
 const LIVE_QUOTE_URL = "https://sabaaek-gold-api.osa60x.workers.dev/quote";
+const LIVE_HISTORY_URL = "https://sabaaek-gold-api.osa60x.workers.dev/history";
 
 function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), { ...init, headers: { ...noStore, ...(init.headers ?? {}) } });
@@ -33,6 +34,13 @@ async function liveQuote() {
   return new Response(await response.text(), { headers: { ...noStore, "cache-control": "public, max-age=12, stale-while-revalidate=12" } });
 }
 
+async function liveHistory(range: string) {
+  const sourceRange = range === "week" ? "7d" : range === "month" ? "30d" : "24h";
+  const response = await fetch(`${LIVE_HISTORY_URL}?range=${sourceRange}`, { headers: { accept: "application/json" } });
+  if (!response.ok) return json({ points: [] }, { status: 503 });
+  return new Response(await response.text(), { headers: { ...noStore, "cache-control": "public, max-age=30, stale-while-revalidate=60" } });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -42,6 +50,7 @@ export default {
       return publicStatus(env, range);
     }
     if (url.pathname === "/api/live-quote" && request.method === "GET") return liveQuote();
+    if (url.pathname === "/api/live-history" && request.method === "GET") return liveHistory(url.searchParams.get("range") ?? "day");
     if (url.pathname === "/api/health" && request.method === "GET") {
       return json({ status: env.SUPABASE_URL ? "configured" : "unconfigured" });
     }
