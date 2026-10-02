@@ -7,6 +7,7 @@ export type HistoryPoint = { bucket: string; price_sar: number | string };
 type ApiReply = { data: PublicDashboard | null; freshness: Freshness; history: HistoryPoint[]; status: "ok" | "unconfigured" | "unavailable" };
 type LiveQuote = { price?: number | string; sourceUpdatedAt?: number | string; fetchedAt?: number | string; status?: string };
 type LiveHistory = { points?: Array<{ ts?: number | string; price?: number | string }> };
+const LIVE_API_ORIGIN = (import.meta.env.VITE_LIVE_API_ORIGIN ?? "https://sabaaek-gold-api.osa60x.workers.dev").replace(/\/$/, "");
 function asIso(value: number | string | undefined): string | null { const date = new Date(typeof value === "number" ? value : Number(value)); return Number.isNaN(date.getTime()) ? null : date.toISOString(); }
 export function toNumber(value: number | string | null | undefined): number | null { const parsed = typeof value === "number" ? value : Number(value); return Number.isFinite(parsed) ? parsed : null; }
 export function dashboardFromLiveQuote(quote: LiveQuote, now = Date.now()): ApiReply | null {
@@ -16,7 +17,8 @@ export function dashboardFromLiveQuote(quote: LiveQuote, now = Date.now()): ApiR
   return { data: { xau_usd: xauUsd, final_24_sar: prices[0].finalSar, final_21_sar: prices[1].finalSar, final_18_sar: prices[2].finalSar, fetched_at: sourceUpdatedAt }, freshness: age <= 5 * 60 * 1000 ? "fresh" : "stale", history: [], status: "ok" };
 }
 async function fetchLiveHistory(range: ChartRange, signal: AbortSignal): Promise<HistoryPoint[]> {
-  const response = await fetch(`/api/live-history?range=${range}`, { signal, cache: "no-store" }); if (!response.ok) return [];
+  const sourceRange = range === "week" ? "7d" : range === "month" ? "30d" : "24h";
+  const response = await fetch(`${LIVE_API_ORIGIN}/history?range=${sourceRange}`, { signal, cache: "no-store" }); if (!response.ok) return [];
   const payload = await response.json() as LiveHistory;
   return (payload.points ?? []).map(point => { const ounce = toNumber(point.price); const timestamp = asIso(point.ts); if (ounce === null || !timestamp) return null; return { bucket: timestamp, price_sar: buildCaratPrices({ xauUsd: ounce })[0].finalSar } as HistoryPoint; }).filter((point): point is HistoryPoint => point !== null);
 }
@@ -26,7 +28,7 @@ export function useDashboard(range: ChartRange) {
     const controller = new AbortController(); setState(current => ({ loading: current.reply === null, reply: current.reply }));
     fetch(`/api/public/dashboard?range=${range}`, { signal: controller.signal }).then(async response => { const body = await response.json() as ApiReply; if (response.ok && body.data) return body; throw new Error("dashboard_unavailable"); }).then(body => setState({ loading: false, reply: body })).catch(async error => {
       if (controller.signal.aborted) return;
-      try { const response = await fetch("/api/live-quote", { signal: controller.signal, cache: "no-store" }); if (!response.ok) throw new Error("quote_unavailable"); const fallback = dashboardFromLiveQuote(await response.json() as LiveQuote); if (!fallback) throw new Error("quote_invalid"); const history = await fetchLiveHistory(range, controller.signal).catch(() => []); setState({ loading: false, reply: { ...fallback, history } }); }
+      try { const response = await fetch(`${LIVE_API_ORIGIN}/quote`, { signal: controller.signal, cache: "no-store" }); if (!response.ok) throw new Error("quote_unavailable"); const fallback = dashboardFromLiveQuote(await response.json() as LiveQuote); if (!fallback) throw new Error("quote_invalid"); const history = await fetchLiveHistory(range, controller.signal).catch(() => []); setState({ loading: false, reply: { ...fallback, history } }); }
       catch { if (!controller.signal.aborted && error) setState({ loading: false, reply: { data: null, freshness: "unavailable", history: [], status: "unavailable" } }); }
     });
     return () => controller.abort();
