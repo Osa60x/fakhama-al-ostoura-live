@@ -18,17 +18,36 @@ export function dashboardFromLiveQuote(quote: LiveQuote, now = Date.now()): ApiR
 }
 async function fetchLiveHistory(range: ChartRange, signal: AbortSignal): Promise<HistoryPoint[]> {
   const sourceRange = range === "week" ? "7d" : range === "month" ? "30d" : "24h";
-  const response = await fetch(`${LIVE_API_ORIGIN}/history?range=${sourceRange}`, { signal, cache: "no-store" }); if (!response.ok) return [];
-  const payload = await response.json() as LiveHistory;
-  return (payload.points ?? []).map(point => { const ounce = toNumber(point.price); const timestamp = asIso(point.ts); if (ounce === null || !timestamp) return null; return { bucket: timestamp, price_sar: buildCaratPrices({ xauUsd: ounce })[0].finalSar } as HistoryPoint; }).filter((point): point is HistoryPoint => point !== null);
+  const localRange = range === "week" ? "week" : range === "month" ? "month" : "day";
+  const candidates = [`/api/live-history?range=${localRange}`, `${LIVE_API_ORIGIN}/history?range=${sourceRange}`];
+  for (const endpoint of candidates) {
+    try {
+      const response = await fetch(endpoint, { signal, cache: "no-store" });
+      if (!response.ok) continue;
+      const payload = await response.json() as LiveHistory;
+      const points = (payload.points ?? []).map(point => { const ounce = toNumber(point.price); const timestamp = asIso(point.ts); if (ounce === null || !timestamp) return null; return { bucket: timestamp, price_sar: buildCaratPrices({ xauUsd: ounce })[0].finalSar } as HistoryPoint; }).filter((point): point is HistoryPoint => point !== null);
+      if (points.length >= 2) return points;
+    } catch { /* continue to the direct source */ }
+  }
+  return [];
 }
 export function useDashboard(range: ChartRange) {
   const [state, setState] = useState<{ loading: boolean; reply: ApiReply | null }>({ loading: true, reply: null });
   useEffect(() => {
     const controller = new AbortController(); setState(current => ({ loading: current.reply === null, reply: current.reply }));
-    fetch(`/api/public/dashboard?range=${range}`, { signal: controller.signal }).then(async response => { const body = await response.json() as ApiReply; if (response.ok && body.data) return body; throw new Error("dashboard_unavailable"); }).then(body => setState({ loading: false, reply: body })).catch(async error => {
+    fetch(`/api/public/dashboard?range=${range}`, { signal: controller.signal }).then(async response => { const body = await response.json() as ApiReply; if (response.ok && body.data) { const history = body.history?.length >= 2 ? body.history : await fetchLiveHistory(range, controller.signal); return { ...body, history }; } throw new Error("dashboard_unavailable"); }).then(body => setState({ loading: false, reply: body })).catch(async error => {
       if (controller.signal.aborted) return;
-      try { const response = await fetch(`${LIVE_API_ORIGIN}/quote`, { signal: controller.signal, cache: "no-store" }); if (!response.ok) throw new Error("quote_unavailable"); const fallback = dashboardFromLiveQuote(await response.json() as LiveQuote); if (!fallback) throw new Error("quote_invalid"); const history = await fetchLiveHistory(range, controller.signal).catch(() => []); setState({ loading: false, reply: { ...fallback, history } }); }
+      try {
+        const quoteEndpoints = ["/api/live-quote", `${LIVE_API_ORIGIN}/quote`];
+        let quote: LiveQuote | null = null;
+        for (const endpoint of quoteEndpoints) {
+          try { const response = await fetch(endpoint, { signal: controller.signal, cache: "no-store" }); if (response.ok) { quote = await response.json() as LiveQuote; break; } } catch { /* try the next endpoint */ }
+        }
+        const fallback = quote ? dashboardFromLiveQuote(quote) : null;
+        if (!fallback) throw new Error("quote_unavailable");
+        const history = await fetchLiveHistory(range, controller.signal).catch(() => []);
+        setState({ loading: false, reply: { ...fallback, history } });
+      }
       catch { if (!controller.signal.aborted && error) setState({ loading: false, reply: { data: null, freshness: "unavailable", history: [], status: "unavailable" } }); }
     });
     return () => controller.abort();

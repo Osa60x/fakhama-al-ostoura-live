@@ -13,3 +13,6 @@
 @keyframes bullion-float{to{transform:translate3d(-1rem,-.65rem,0) rotate(1deg)}}
 @media(max-width:900px){.hero-bullion-image{right:8%;top:6%;width:min(66vw,25rem)}}
 @media(max-width:600px){.hero-bullion-image{right:3%;top:4%;width:76vw;max-width:23rem}.hero-bars{transform:none;opacity:1}}
+/* Real bullion photography from the supplied collection replaces CSS silhouettes. */
+.bullion-object{display:grid;place-items:center;width:100%;height:8.6rem;border:0!important;background:transparent!important;box-shadow:none!important;transform:none!important;overflow:visible}.bullion-object img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 .6rem .55rem #0009);transition:transform .35s var(--ease-out),filter .35s ease}.bullion-card:hover .bullion-object img{transform:translateY(-5px) scale(1.06) rotate(-1deg);filter:drop-shadow(0 .8rem .7rem #000b) drop-shadow(0 0 .55rem #e8bd5d55)}.story-bullion-image{position:absolute;right:8%;bottom:-6%;width:74%;height:112%;object-fit:contain;filter:drop-shadow(0 1rem 1rem #000b);transform:rotate(-2deg);transition:transform .5s var(--ease-out)}.story-visual:hover .story-bullion-image{transform:translateY(-6px) rotate(1deg) scale(1.04)}
+@media(max-width:600px){.bullion-object{height:7.2rem}.story-bullion-image{right:16%;width:68%;height:118%}}
